@@ -16,6 +16,7 @@ class Scrape():
         self.lag = 1
         self.counter = 0
         self.state = "START"
+        self.siteTableIDs = ["per_poss-team","advanced-team","shooting-team"]
     
     def simRun(self):
         htmlStart = util.readWebPageHTML(startLink)
@@ -24,38 +25,39 @@ class Scrape():
         links = self.getSeasonLinks(seasons)
         print(links)
         correctedLinks = self.editSeasonLinks(links) 
-        self.goThroughSeasonLinks(correctedLinks,test = 1)
+        self.goThroughSeasonLinks(correctedLinks,index = 0, test = 2)
 
 
 #remove test variable once you're done 
-    def goThroughSeasonLinks(self,seasonLinks,test):
-        index = 0
+    def goThroughSeasonLinks(self,seasonLinks,index,test):
         while index < len(seasonLinks) and index< test:
+            regSeasonDFs = []
+            playoffDFs = []
             try:
                 input(f"This is the current season {seasonLinks[index]}")
-                print(index)
                 time.sleep(3)
                 htmlSeason = util.readWebPageHTML(seasonLinks[index])
                 seasonSoup = util.transformToSoupHP(htmlSeason)
-                statRows = util.posRegTableSearch(seasonSoup)
-                print(statRows)
-                #print(statRows[0].find_all('td')[4].string) #just testing how to use .string to get the value in the table 
-                
-                self.adjustSiteCount(index)
+                regSeasonDFs = self.createDFs(seasonSoup,index,regSeasonDFs)
+                self.printAllDFs(regSeasonDFs)
+                self.adjustSiteCountPass(index)
                 index += 1
-                
-
+    
             except HTTPError as e:
                 if e == 429:
                     print("fail")
 
+    def printAllDFs(self,dfList):
+        for x in dfList:
+            print(x)
+
     def playoffsDataPull(self,index):
         pass
 
-    def adjustSiteCount(self,index):
+    def adjustSiteCountPass(self,index):
         pass
 
-# go back and try this one again once you have more time with it 
+#CHANGE - getSeasonLinks should be in util 
     def getSeasonLinks(self,treeSearch):
         treeSearch.pop(0) #removing misc search result grabbed from search; second search is to pop 2025 lol
         links = [searchResult.a.get("href") for searchResult in treeSearch]
@@ -64,6 +66,18 @@ class Scrape():
     def editSeasonLinks(self,baseLinks):
         newLinks = [('https://www.basketball-reference.com' + x) for x in baseLinks]
         return newLinks 
+
+    def createDFs(self,seasonSoup,index,allDFs):
+        if index == 0:
+            perPosDF = util.regTableSearch(seasonSoup,"per_poss-team")
+            advStatDF = util.regTableSearch(seasonSoup,"advanced-team")
+            shootDF = util.regTableSearch(seasonSoup,"shooting-team")
+            allDFs = [perPosDF,advStatDF,shootDF]
+        else:
+            for df in range(len(allDFs)):
+                currSeasonDF = util.regTableSearch(seasonSoup,self.siteTableIDs[df])
+                allDFs[df] = pd.concat([allDFs[df],currSeasonDF],ignore_index = True)
+        return allDFs
 
 sim = Scrape(startLink)
 sim.simRun()
