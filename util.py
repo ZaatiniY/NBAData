@@ -3,6 +3,7 @@ import time
 from urllib.request import urlopen
 import numpy as np
 import pandas as pd
+import re 
 
 #readWebPageHTML will give you the HTML version of a website
 #   parameters:
@@ -10,6 +11,7 @@ import pandas as pd
 #   return->    htmlTree - interpretted website link as the proper html format
 
 def readWebPageHTML(link):
+    print(f"This is you in readWebPageHTML - {link}")
     with urlopen(link) as response:
         htmlTree = response.read()
         #print(f"{htmlTree}")
@@ -29,10 +31,10 @@ def searchTreeClassAll(soup,c):
 
 #posRegTableSearch is taking the Soup Object for each individual season being looped through in test.py
 # From there, we will search the soup for all the data rows and columns
-# Return --->   tableDF - pandas DF with dimension that match those of "Per 100 Pos" for the analyzed season; removing unnecessary components  
-def regTableSearch(soup,specifiedID):
+# Return --->   tableDF - pandas DF with dimension that match those of the scraped website for the analyzed season
+def regTableSearch(soup,specifiedID,seasonLink):
     columnHeaders = getRegColumnHeaders(soup,specifiedID)  
-    tableRows = getRegDataRows(soup,specifiedID)
+    tableRows = getRegDataRows(soup,specifiedID,seasonLink)
     headerIndexExcess = len(columnHeaders) - len(tableRows[0]) #tableRows is a list of lists, therefore to get how many items are in an individual table row, you need to look at an individual index (in this case zero)
     input(f"This is the base results of the table headers - {columnHeaders}")
     columnHeadersCorrected = columnHeaders[headerIndexExcess:] #this should remove the nonrelavant column search results from basketball reference tables
@@ -40,30 +42,47 @@ def regTableSearch(soup,specifiedID):
     perPosDF = pd.DataFrame(tableRows,columns=columnHeadersCorrected)
     return perPosDF   
 
+
 def getRegColumnHeaders(soup,specifiedID):
     tableColumnsTag = 'th'
     table = soup.find_all(id=specifiedID)
     rawTableColumns = table[0].thead.find_all(tableColumnsTag)
     columnHeaders = [columnName.string for columnName in rawTableColumns] 
+    columnHeaders.append("Season Year")
     #columnHeaders = removeNoneValues(columnHeaders)
     return columnHeaders
 
-def getRegDataRows(soup,specifiedID):
+#grabs the data rows from the target table in the website from seasonLink
+#   soup - BS subject for your current season website [BS Object]
+#   specificID - what ID to search to target your specific table [string]
+#   seasonLink - the URL for your current season website [string]
+# return --> dataRows - rows from your current table being assessed per specifiedID [list of lists]
+def getRegDataRows(soup,specifiedID,seasonLink):
     tableRowTag = 'tr'
     table = soup.find_all(id=specifiedID)
     rawTableRows = table[0].tbody.find_all(tableRowTag)
     #input(f"This is the length of rawTableRows: {len(rawTableRows)} - hit enter to continue ")
-    dataRows = buildDataRows(rawTableRows)
+    dataRows = buildDataRows(rawTableRows,seasonLink)
     return dataRows
 
-def buildDataRows(soupResults):
+def buildDataRows(soupResults,seasonLink):
     relevantDataTag = 'td'
     compiledData = []
     for index in range(len(soupResults)):
         #input(f"This is your soup results for your index item - {soupResults[index]}")
         newRow = [rowElement.string for rowElement in soupResults[index].find_all(relevantDataTag)]
+        if newRow[0] is None:
+            newRow[0] = soupResults[index].td.a.string #this is to make sure that the asterisk for playoffs team isn't returning None for the team name
+        addYearToRow(newRow,seasonLink)
         #newRow = removeNoneValues(newRow)
         #input(f"This is before a new row gets added to the compiled data list of list {newRow}")
         compiledData.append(newRow)
     return compiledData  
 
+def addYearToRow(row,seasonLink):
+    year = re.findall(r'\d+',seasonLink)[0] #regex returns the string subset in the from of a list, so selecting index 0
+    row.append(year)
+
+# def playoff_link(href,seasonLink):
+#     year = re.findall(r'\d+',seasonLink)[0]
+#     return href and re.compile("playoffs/NBA_"+year).search(href)

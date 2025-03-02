@@ -4,6 +4,7 @@ from urllib.error import HTTPError
 import time
 import pandas as pd 
 import numpy as np
+import re
 
 
 startLink = 'https://www.basketball-reference.com/leagues/'
@@ -30,15 +31,15 @@ class Scrape():
 
 #remove test variable once you're done 
     def goThroughSeasonLinks(self,seasonLinks,index,test):
+        regSeasonDFs = []
+        playoffDFs = []
         while index < len(seasonLinks) and index< test:
-            regSeasonDFs = []
-            playoffDFs = []
             try:
                 input(f"This is the current season {seasonLinks[index]}")
                 time.sleep(3)
                 htmlSeason = util.readWebPageHTML(seasonLinks[index])
                 seasonSoup = util.transformToSoupHP(htmlSeason)
-                regSeasonDFs = self.createDFs(seasonSoup,index,regSeasonDFs)
+                #regSeasonDFs = self.createDFs(seasonSoup,index,regSeasonDFs,seasonLinks[index])
                 self.printAllDFs(regSeasonDFs)
                 self.adjustSiteCountPass(index)
                 index += 1
@@ -67,15 +68,15 @@ class Scrape():
         newLinks = [('https://www.basketball-reference.com' + x) for x in baseLinks]
         return newLinks 
 
-    def createDFs(self,seasonSoup,index,allDFs):
+    def createDFs(self,seasonSoup,index,allDFs,seasonLink):
         if index == 0:
-            perPosDF = util.regTableSearch(seasonSoup,"per_poss-team")
-            advStatDF = util.regTableSearch(seasonSoup,"advanced-team")
-            shootDF = util.regTableSearch(seasonSoup,"shooting-team")
+            perPosDF = util.regTableSearch(seasonSoup,"per_poss-team",seasonLink)
+            advStatDF = util.regTableSearch(seasonSoup,"advanced-team",seasonLink)
+            shootDF = util.regTableSearch(seasonSoup,"shooting-team",seasonLink)
             allDFs = [perPosDF,advStatDF,shootDF]
         else:
             for df in range(len(allDFs)):
-                currSeasonDF = util.regTableSearch(seasonSoup,self.siteTableIDs[df])
+                currSeasonDF = util.regTableSearch(seasonSoup,self.siteTableIDs[df],seasonLink)
                 allDFs[df] = pd.concat([allDFs[df],currSeasonDF],ignore_index = True)
         return allDFs
 
