@@ -11,7 +11,6 @@ import re
 #   return->    htmlTree - interpretted website link as the proper html format
 
 def readWebPageHTML(link):
-    print(f"This is you in readWebPageHTML - {link}")
     with urlopen(link) as response:
         htmlTree = response.read()
         #print(f"{htmlTree}")
@@ -36,10 +35,11 @@ def regTableSearch(soup,specifiedID,seasonLink):
     columnHeaders = getRegColumnHeaders(soup,specifiedID)  
     tableRows = getRegDataRows(soup,specifiedID,seasonLink)
     headerIndexExcess = len(columnHeaders) - len(tableRows[0]) #tableRows is a list of lists, therefore to get how many items are in an individual table row, you need to look at an individual index (in this case zero)
-    input(f"This is the base results of the table headers - {columnHeaders}")
+    #input(f"This is the base results of the table headers - {columnHeaders}")
     columnHeadersCorrected = columnHeaders[headerIndexExcess:] #this should remove the nonrelavant column search results from basketball reference tables
-    input(f"This is the corrected results of the table headers - {columnHeadersCorrected}")
+    #input(f"This is the corrected results of the table headers - {columnHeadersCorrected}")
     perPosDF = pd.DataFrame(tableRows,columns=columnHeadersCorrected)
+    #input(f"This is the DF to be returned - {perPosDF}")
     return perPosDF   
 
 
@@ -60,9 +60,12 @@ def getRegColumnHeaders(soup,specifiedID):
 def getRegDataRows(soup,specifiedID,seasonLink):
     tableRowTag = 'tr'
     table = soup.find_all(id=specifiedID)
-    rawTableRows = table[0].tbody.find_all(tableRowTag)
-    #input(f"This is the length of rawTableRows: {len(rawTableRows)} - hit enter to continue ")
-    dataRows = buildDataRows(rawTableRows,seasonLink)
+    if len(table)>0:
+        rawTableRows = table[0].tbody.find_all(tableRowTag)
+        #input(f"This is the length of rawTableRows: {len(rawTableRows)} - hit enter to continue ")
+        dataRows = buildDataRows(rawTableRows,seasonLink)
+    else:
+        dataRows = []
     return dataRows
 
 def buildDataRows(soupResults,seasonLink):
@@ -73,16 +76,31 @@ def buildDataRows(soupResults,seasonLink):
         newRow = [rowElement.string for rowElement in soupResults[index].find_all(relevantDataTag)]
         if newRow[0] is None:
             newRow[0] = soupResults[index].td.a.string #this is to make sure that the asterisk for playoffs team isn't returning None for the team name
+        #input(f"This is the link where we will pull the year for the DF - {seasonLink}")
         addYearToRow(newRow,seasonLink)
-        #newRow = removeNoneValues(newRow)
         #input(f"This is before a new row gets added to the compiled data list of list {newRow}")
         compiledData.append(newRow)
     return compiledData  
 
 def addYearToRow(row,seasonLink):
-    year = re.findall(r'\d+',seasonLink)[0] #regex returns the string subset in the from of a list, so selecting index 0
+    year = getYearFromURL(seasonLink) #regex returns the string subset in the from of a list, so selecting index 0
     row.append(year)
+
+def getYearFromURL(seasonLink):
+    year = re.findall(r'\d+',seasonLink)
+    return year[0] #returning only index at 0 since regex returns string subset as a list
 
 # def playoff_link(href,seasonLink):
 #     year = re.findall(r'\d+',seasonLink)[0]
 #     return href and re.compile("playoffs/NBA_"+year).search(href)
+
+def findPlayoffURLLink(soup,year):
+    playoffExtension = soup.find_all(href = re.compile("playoffs/NBA_"+year))
+    return playoffExtension
+
+def extractPlayoffURL(playoffSearch):
+    return playoffSearch.get("href")
+
+
+
+
