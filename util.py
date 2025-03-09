@@ -35,17 +35,18 @@ def regTableSearch(soup,specifiedID,seasonLink):
     columnHeaders = getRegColumnHeaders(soup,specifiedID)  
     tableRows = getRegDataRows(soup,specifiedID,seasonLink)
     headerIndexExcess = len(columnHeaders) - len(tableRows[0]) #tableRows is a list of lists, therefore to get how many items are in an individual table row, you need to look at an individual index (in this case zero)
-    #input(f"This is the base results of the table headers - {columnHeaders}")
     columnHeadersCorrected = columnHeaders[headerIndexExcess:] #this should remove the nonrelavant column search results from basketball reference tables
-    #input(f"This is the corrected results of the table headers - {columnHeadersCorrected}")
+    overheader = adjustColumnsForRepeats(soup,specifiedID,columnHeadersCorrected)
+    input(f"This is your overheader check; see the list of colspan returned - {overheader}")
     perPosDF = pd.DataFrame(tableRows,columns=columnHeadersCorrected)
-    #input(f"This is the DF to be returned - {perPosDF}")
     return perPosDF   
 
 
 def getRegColumnHeaders(soup,specifiedID):
     tableColumnsTag = 'th'
+    #input(f"Current column header grab - {specifiedID}")#DELETE - Testing playoff link returns correct value
     table = soup.find_all(id=specifiedID)
+    #input(f"This is the returned table from your find_all result - {table}")
     rawTableColumns = table[0].thead.find_all(tableColumnsTag)
     columnHeaders = [columnName.string for columnName in rawTableColumns] 
     columnHeaders.append("Season Year")
@@ -102,5 +103,36 @@ def extractPlayoffURL(playoffSearch):
     return playoffSearch.get("href")
 
 
+#adjustColumnsForRepeats is the process of making sure all your columns have unique names, as DF concat doesn't work unless this is held true. Necessary since earlier NBA season data tables are different than modern day nba data tables
+def adjustColumnsForRepeats(soup,specifiedID,columnTitles):
+    if checkColumnHeadersRepeat(columnTitles) is True:
+        overheadSoupTree = findOverHeadSoupSegments(soup,specifiedID,columnTitles)
+        grabOverHeadSpan = grabOverHeadSpan(overheadSoupTree)
+    return columnTitles
 
+def checkColumnHeadersRepeat(columnTitles):
+    check  = False 
+    indX = 0 
+    while check is False and indX < len(columnTitles)-1:
+        for indY in range(indX+1,len(columnTitles)):
+            if columnTitles[indX] == columnTitles[indY]:
+                check = True
+        indX += 1    
+    return check
+
+def findOverHeadSoupSegments(soup,specifiedID, columnTitles):
+    table = soup.find_all(id=specifiedID)
+    rawTableColumns = table[0].thead.find_all(class_='over_header')
+    searchResults = rawTableColumns[0].find_all('th')
+    return searchResults
+
+def grabOverHeadSpan(overheadSearchResults):
+    colspanList = []
+    for x in overheadSearchResults:
+        colspanList.append(x.get('colspan',1))
+    return colspanList
+
+def applyUniqueColumnNames(columnTitles,OHspan):
+    
+    pass
 
