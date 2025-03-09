@@ -36,8 +36,8 @@ def regTableSearch(soup,specifiedID,seasonLink):
     tableRows = getRegDataRows(soup,specifiedID,seasonLink)
     headerIndexExcess = len(columnHeaders) - len(tableRows[0]) #tableRows is a list of lists, therefore to get how many items are in an individual table row, you need to look at an individual index (in this case zero)
     columnHeadersCorrected = columnHeaders[headerIndexExcess:] #this should remove the nonrelavant column search results from basketball reference tables
-    overheader = adjustColumnsForRepeats(soup,specifiedID,columnHeadersCorrected)
-    input(f"This is your overheader check; see the list of colspan returned - {overheader}")
+    columnHeadersCorrected = adjustColumnsForRepeats(soup,specifiedID,columnHeadersCorrected)
+    input(f"This is your overheader check; see the list of colspan returned - {columnHeadersCorrected}")
     perPosDF = pd.DataFrame(tableRows,columns=columnHeadersCorrected)
     return perPosDF   
 
@@ -107,8 +107,10 @@ def extractPlayoffURL(playoffSearch):
 def adjustColumnsForRepeats(soup,specifiedID,columnTitles):
     if checkColumnHeadersRepeat(columnTitles) is True:
         overheadSoupTree = findOverHeadSoupSegments(soup,specifiedID,columnTitles)
-        grabOverHeadSpan = grabOverHeadSpan(overheadSoupTree)
-    return columnTitles
+        overHeadSpan = grabOverHeadSpan(overheadSoupTree)
+        overheadTitles = grabOverHeadTitles(overheadSoupTree)
+        columnTitles = applyUniqueColumnNames(columnTitles, overheadTitles,overHeadSpan)
+    return columnTitles 
 
 def checkColumnHeadersRepeat(columnTitles):
     check  = False 
@@ -129,10 +131,30 @@ def findOverHeadSoupSegments(soup,specifiedID, columnTitles):
 def grabOverHeadSpan(overheadSearchResults):
     colspanList = []
     for x in overheadSearchResults:
-        colspanList.append(x.get('colspan',1))
+        colspanList.append(int(x.get('colspan',1)))
     return colspanList
 
-def applyUniqueColumnNames(columnTitles,OHspan):
-    
-    pass
+def grabOverHeadTitles(overheadSearchResults):
+    overheadTitles = []
+    for x in overheadSearchResults:
+        overheadTitles.append(x.text)
+    return overheadTitles 
+
+def applyUniqueColumnNames(columnTitles,OHtitles,OHspan):
+    OHindex = 0
+    OHcounter = 0
+    newColumnHeaders = []
+    for column in columnTitles:
+        if OHcounter>=OHspan[OHindex]:
+            OHindex += 1 
+            OHcounter =0 
+        OHExtension = OHtitles[OHindex]
+        if OHExtension == '':
+            newColumnHeaders.append(column)
+        else:
+            newColumnHeaders.append(OHExtension + ' ' + column)
+        OHcounter += 1
+    return newColumnHeaders
+
+
 
