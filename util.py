@@ -37,7 +37,7 @@ def regTableSearch(soup,specifiedID,seasonLink):
     headerIndexExcess = len(columnHeaders) - len(tableRows[0]) #tableRows is a list of lists, therefore to get how many items are in an individual table row, you need to look at an individual index (in this case zero)
     columnHeadersCorrected = columnHeaders[headerIndexExcess:] #this should remove the nonrelavant column search results from basketball reference tables
     columnHeadersCorrected = adjustColumnsForRepeats(soup,specifiedID,columnHeadersCorrected)
-    input(f"This is your overheader check; see the list of colspan returned - {columnHeadersCorrected}")
+    #input(f"This is your overheader check; see the list of colspan returned - {columnHeadersCorrected}")
     perPosDF = pd.DataFrame(tableRows,columns=columnHeadersCorrected)
     return perPosDF   
 
