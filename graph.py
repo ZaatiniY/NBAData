@@ -20,9 +20,10 @@ def readAllCSVs(folders):
             fullFilePath = path + '\\' + csv
             DFs.append(pd.read_csv(fullFilePath, encoding = 'utf-8',index_col = 0))
             csvNames = []
-    print(len(DFs))
+    
     return turnDFListToDict(DFs)
 #Very silly lol - taking list from readAllCSVs and making it a dictionary for readability
+#EDIT - need to make it so that the dictionaries get added based on just name of the file, not order in which the function reads them from the directory
 def turnDFListToDict(dfs):
     dfDict = {
         'adv_p' : dfs[0],
@@ -95,22 +96,27 @@ def ORCompPlots(dfs):
 def ORFactorsPlots(dfs):
     ORData = getOffensiveRatingData(dfs)
     ORData = insertORDeltaColumns(ORData)
+    
     pointLabel = [ORData['Team'].tolist()[x] + ' '+ ORData['Season Year'].tolist()[x] for x in range(len(ORData['Team'].tolist()))]
     fig = make_subplots(
         rows = 2,cols = 2,
     )
-
-    input(dfs['sho_r']['Season Year']) #testing that the year column is printing properly 
     relevantYears = uniqueYears(dfs['sho_r']['Season Year'].tolist())
-    figButtons = assignYearButtons(relevantYears)
-    input(f"this is your buttons options - {figButtons}")
+    relevantYears.pop(0) #taking out 2025 from the years options since it's not 2025 playoffs yet 
+    
+    # for year in relevantYears: #back when we used a loop in the ORFactorsPlots 
+         
+    addTraceStyle(fig,dfs['sho_r'],ORData,pointLabel,relevantYears,columnOption = '2P',r = 1,c = 1)
+    addTraceStyle(fig,dfs['sho_r'],ORData,pointLabel,relevantYears,columnOption = '2P.2',r = 2,c = 1)
+    addTraceStyle(fig,dfs['sho_r'],ORData,pointLabel,relevantYears,columnOption = '3P',r = 1,c = 2)
+    addTraceStyle(fig,dfs['sho_r'],ORData,pointLabel,relevantYears,columnOption = '3P.2',r = 2,c = 2)
+    fig.update_xaxes(title_text="2Pt Attempt Fraction", row=1, col=1)
+    fig.update_xaxes(title_text="3Pt Attempt Fraction", row=1, col=2)
+    fig.update_xaxes(title_text="2Pt Assisted Fraction", row=2, col=1)
+    fig.update_xaxes(title_text="3Pt Assisted Fraction", row=2, col=2)
+    fig.update_yaxes(title_text = "% change in Offensive Rating(playoff vs regular season)")
+    figButtons = assignYearButtons(relevantYears,fig)
     fig.update_layout(updatemenus = [dict(active = 0,buttons = figButtons)])
-    for year in relevantYears:
-        traceVisibility = False #EDIT - change so that in year 1 the visibility is TRUE;will avoid bug where the first year that shows up in button options has ALL the data shown 
-        fig = addTwoPtAttemptTrace(fig,dfs['sho_r'],ORData,pointLabel,year,traceVisibility)
-        #fig = addTwoPtAssistTrace(fig,dfs['sho_r'],ORData,pointLabel,year,traceVisibility)
-        #fig = addThrPtAttemptTrace(fig,dfs['sho_r'],ORData,pointLabel,year,traceVisibility)
-        #fig = addThrPtAssistTrace(fig,dfs['sho_r'],ORData,pointLabel,year,traceVisibility)
     fig.show()
 
 def uniqueYears(seasonYearsColumns):
@@ -122,72 +128,40 @@ def uniqueYears(seasonYearsColumns):
             keep.append(year)
     return keep
 
-#start of 2PA vs ORtg delta 
-def addTwoPtAttemptTrace(fig,shootingDF,ORData,label, year, traceVis):
-    filteredDFshooting = shootingDF.loc[shootingDF['Season Year'] == year]
-    filteredDFortg = ORData.loc[shootingDF['Season Year'] == year]
-    fig.add_trace(
-        go.Scatter(
-            x = filteredDFshooting['2P.2'].tolist(),
-            y = filteredDFortg['ortgD_scaler'].tolist(),
-            name = "2PT Attempt Frequency vs ORtg Delta",
-            #text = label, EDIT - need to fix pointLable such that it works with looping through all the different years 
-            mode = 'markers',
-            visible = traceVis
-        ), row = 1,col =1
-    )
-    return fig
 
-def addTwoPtAssistTrace(fig,shootingDF,ORData,label,traceVis):
-    fig.add_trace(
-        go.Scatter(
-            x = shootingDF['2P.2'].tolist(),
-            y = ORData['ortgD_ratio'].tolist(),
-            name = "2PTs Assisted Frequency vs ORtg Delta",
-            text = label,
-            mode = 'markers',
-            visible = traceVis
-        ), row = 1,col =2
-    )
-    return fig
+#addTraceStyle will add traces to the figure based on the option selected for the column
+def addTraceStyle(fig,shootingDF,ORData,label,relevantYears,columnOption,r,c):
+    for year in relevantYears:
+        filteredDFshooting = shootingDF.loc[shootingDF['Season Year'] == year]
+        ORData['Season Year'] = ORData['Season Year'].astype(str) #changing dataframe to a string type
+        filteredDFortg = ORData.loc[ORData['Season Year'] == str(year)]
+        if year == relevantYears[0]:
+            traceVis = True
+        else:
+            traceVis = False
+        #input(filteredDFshooting['2P.2'])
+        fig.add_trace(
+            go.Scatter(
+                x = filteredDFshooting[columnOption],
+                y = filteredDFortg['ortgD_ratio'],
+                name = year,
+                text = filteredDFortg['Team'].tolist(),
+                #text = relevantYears, #EDIT - need to fix pointLable such that it works with looping through all the different years 
+                mode = 'markers',
+                visible = traceVis,
+                line = {'color':'cadetblue'}
+            ), row = r,col =c
+        )
 
-def addThrPtAttemptTrace(fig,shootingDF,ORData,label,traceVis):
-    fig.add_trace(
-        go.Scatter(
-            x = shootingDF['3P'].tolist(),
-            y = ORData['ortgD_ratio'].tolist(),
-            name = "3PT Attempt Frequency vs ORtg Delta",
-            text = label,
-            mode = 'markers',
-            visible = traceVis
-        ), row = 2,col =1
-    )
-    return fig
-
-def addThrPtAssistTrace(fig,shootingDF,ORData,label,traceVis):
-    fig.add_trace(
-        go.Scatter(
-            x = shootingDF['3P.2'].tolist(),
-            y = ORData['ortgD_ratio'].tolist(),
-            name = "3PT Assist Frequency vs ORtg Delta",
-            text = label,
-            mode = 'markers',
-            visible = traceVis
-        ), row = 2,col =2
-    )
-    return fig
-
-
-
-def assignYearButtons(SeasonYears):
-    buttonChoices = []
+def assignYearButtons(SeasonYears,fig):
+    buttonChoices = list()
     for year in range(len(SeasonYears)):
         visibilitySet = [False for i in range(len(SeasonYears))]
         visibilitySet[year] = True
         buttonOption = dict(
             label = SeasonYears[year],
             method = 'update',
-            args = [{'visibile':visibilitySet},
+            args = [{'visible':visibilitySet},
                     {"Title":SeasonYears}]
         )
         buttonChoices.append(buttonOption)
