@@ -114,7 +114,7 @@ def ORFactorsPlots(dfs):
     fig.update_xaxes(title_text="3Pt Attempt Fraction", row=1, col=2)
     fig.update_xaxes(title_text="2Pt Assisted Fraction", row=2, col=1)
     fig.update_xaxes(title_text="3Pt Assisted Fraction", row=2, col=2)
-    fig.update_yaxes(title_text = "% change in Offensive Rating(playoff vs regular season)")
+    fig.update_yaxes(title_text = "% change in Offensive Rating")
     figButtons = assignYearButtons(relevantYears,fig)
     fig.update_layout(updatemenus = [dict(active = 0,buttons = figButtons)])
     fig.show()
@@ -168,8 +168,45 @@ def assignYearButtons(SeasonYears,fig):
     return buttonChoices
 
 
+def orbTrends(dfs):
+    fig = make_subplots(
+        rows = 1, cols= 1
+    )
+    advancedStats = dfs['adv_r']
+    relevantYears = uniqueYears(advancedStats['Season Year'])
+    relevantYears.pop(0)
+    averageYearlyORBP = calcAvgYearlyStat(advancedStats,relevantYears,columnName = 'ORB%')
+    fig.add_trace(
+        go.Scatter(
+            y = averageYearlyORBP,
+            x = relevantYears,
+            mode = 'lines',
+            line = {'color':'cadetblue'}
+        ), row  = 1, col = 1
+    )
+    fig.update_xaxes(title_text = 'Regular Season Year')
+    fig.update_yaxes(title_text = 'Average ORB %', showgrid = True, griddash = 'solid',gridcolor = 'black')
+    fig.update_layout(title = {'text':'Regular Season ORB% Over the Years'}, plot_bgcolor = "white")
+    fig.show()
+
+    return averageYearlyORBP
+
+    
+
+def calcAvgYearlyStat(targetDF, years, columnName):
+    averagedData = list()
+    for year in years:
+        currYearFiltered = targetDF.loc[targetDF['Season Year']==year]
+        sumOfStat = currYearFiltered[columnName].sum()
+        numberOfDataPoints = len(currYearFiltered[columnName]) 
+        averageValue = round(sumOfStat/numberOfDataPoints,1)
+        averagedData.append(averageValue)
+    return averagedData
+
+
 
 folders = ['C:\\Users\\Yaser\\OneDrive\\Documents\\Projects\\NBAData\\NBADataSets\\2002+\\Playoff','C:\\Users\\Yaser\\OneDrive\\Documents\\Projects\\NBAData\\NBADataSets\\2002+\\Regular']
 dfs = readAllCSVs(folders)
-#ORCompPlots(dfs)
-ORFactorsPlots(dfs)
+# ORCompPlots(dfs)
+# ORFactorsPlots(dfs)
+orbTrends(dfs)
