@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np 
 from os import listdir
 from plotly.subplots import make_subplots
+import plotly.express as px 
 
 #self.siteTableIDs = ["per_poss-team","advanced-team","shooting-team"]
 #readAllCSVs takes a list of file paths, and returns all the information
@@ -170,28 +171,75 @@ def assignYearButtons(SeasonYears,fig):
 
 def orbTrends(dfs):
     fig = make_subplots(
-        rows = 1, cols= 1
+        rows = 1, cols= 2
     )
     advancedStats = dfs['adv_r']
     relevantYears = uniqueYears(advancedStats['Season Year'])
     relevantYears.pop(0)
     averageYearlyORBP = calcAvgYearlyStat(advancedStats,relevantYears,columnName = 'ORB%')
+    
+    uniqueSeasonNames = [advancedStats['Team'][x] + ' '+ str((advancedStats['Season Year'])[x]) for x in range(len(advancedStats['Team']))]
+
+    #Trace 1 - ORB% over the seasons
     fig.add_trace(
         go.Scatter(
             y = averageYearlyORBP,
             x = relevantYears,
-            mode = 'lines',
+            name = "Average ORB% per season",
+            mode = 'lines+markers',
             line = {'color':'cadetblue'}
         ), row  = 1, col = 1
     )
-    fig.update_xaxes(title_text = 'Regular Season Year')
-    fig.update_yaxes(title_text = 'Average ORB %', showgrid = True, griddash = 'solid',gridcolor = 'black')
-    fig.update_layout(title = {'text':'Regular Season ORB% Over the Years'}, plot_bgcolor = "white")
+
+    #Trace 2 - ORB% vs OFRT
+    fig.add_trace(
+        go.Scatter(
+            y = advancedStats['ORtg'],
+            x = advancedStats['ORB%'],
+            name = "ORtg vs ORB",
+            text = uniqueSeasonNames,
+            mode = 'markers',
+            line = {'color':'cadetblue'}
+        ), row  = 1, col = 2
+    )
+
+
+    ortgSlope,ortgYInt = linearRegCalc(advancedStats['ORB%'],advancedStats['ORtg'])
+    sortedX = (advancedStats['ORB%'].tolist())
+    input(sortedX)
+    sortedX[:].sort()
+    input(ortgYInt)
+    input(ortgSlope)
+    print(type(sortedX))
+    sortedY = [(ortgSlope*i)+ortgYInt for i in sortedX]
+    #Adding linear regression line to trace 2 subplot 
+    fig.add_trace(
+        go.Scatter(
+            x = sortedX,
+            y = sortedY,
+            name = 'ORtg Regression',
+            mode = 'lines',
+            line =  {'color':'black','dash':'dot'}
+        ),row = 1, col = 2
+    )
+
+    fig.update_xaxes(title_text = 'Regular Season Year', row = 1, col = 1)
+    fig.update_yaxes(title_text = 'Average ORB %', showgrid = True, griddash = 'solid',gridcolor = 'black',row = 1, col = 1)
+
+    fig.update_xaxes(title_text = 'ORtg - Regular Season (%)', row = 1, col = 2)
+    fig.update_yaxes(title_text = 'Regular Season ORtg', showgrid = True, griddash = 'solid',gridcolor = 'black',row = 1, col = 2)
+
+
+    fig.update_layout(title = {'text':'Impact of ORB Over the Years'}, plot_bgcolor = "white")
     fig.show()
 
     return averageYearlyORBP
 
-    
+
+def linearRegCalc(xValue,yValue):
+    slope,y_int = np.polyfit(xValue,yValue,1)
+    return (slope,y_int)
+
 
 def calcAvgYearlyStat(targetDF, years, columnName):
     averagedData = list()
@@ -210,3 +258,6 @@ dfs = readAllCSVs(folders)
 # ORCompPlots(dfs)
 # ORFactorsPlots(dfs)
 orbTrends(dfs)
+
+#ITEMS TO FIX:
+#   - Having issues with regression line only being half dashed; rest is solid 
